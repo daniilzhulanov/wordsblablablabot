@@ -1,0 +1,371 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<title>Тренажёр лексики</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Caveat:wght@500;700&display=swap">
+<style>
+:root{--paper:#fbfaf5;--line:#d3dbef;--ink:#1b2a8f;--text:#22253a;--mute:#6b7090;--ok:#1e7a46;--bad:#b83227;--card:#ffffff;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--paper:#13151e;--line:#222a46;--ink:#a9b7ff;--text:#e3e5f3;--mute:#8a90b3;--ok:#5fcf8f;--bad:#ff8a7e;--card:#1b1e2b}}
+:root[data-theme="dark"]{--paper:#13151e;--line:#222a46;--ink:#a9b7ff;--text:#e3e5f3;--mute:#8a90b3;--ok:#5fcf8f;--bad:#ff8a7e;--card:#1b1e2b}
+*{box-sizing:border-box}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;min-height:100vh;background:var(--paper);background-image:linear-gradient(var(--line) 1px,transparent 1px),linear-gradient(90deg,var(--line) 1px,transparent 1px);background-size:24px 24px;color:var(--text);font:17px/1.5 system-ui,-apple-system,"Segoe UI",sans-serif}
+main{max-width:620px;margin:0 auto;padding:20px 16px 48px}
+h1{font:700 40px/1.1 Caveat,"Segoe Script",cursive;color:var(--ink);margin:4px 0 14px}
+.tabs,.opts{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}
+button{font:inherit;color:var(--text);background:var(--card);border:1.5px solid var(--ink);border-radius:8px;padding:9px 14px;cursor:pointer;min-height:44px}
+button:focus-visible,input:focus-visible{outline:3px solid var(--ink);outline-offset:2px}
+button.on{background:var(--ink);color:var(--paper)}
+button.ok{border-color:var(--ok);color:var(--ok)}
+button.bad{border-color:var(--bad);color:var(--bad)}
+.bar{height:8px;background:var(--card);border:1.5px solid var(--ink);border-radius:6px;overflow:hidden;margin:6px 0 4px}
+.bar i{display:block;height:100%;background:var(--ink);width:0;transition:width .25s}
+.meta{display:flex;justify-content:space-between;color:var(--mute);font-size:15px;margin-bottom:14px}
+.card{background:var(--card);border:1.5px solid var(--ink);border-radius:10px;padding:22px 18px;min-height:230px;display:flex;flex-direction:column;gap:14px}
+.word{font:700 44px/1.1 Caveat,"Segoe Script",cursive;color:var(--ink);overflow-wrap:anywhere}
+.sent{font-size:19px}
+.sent b{color:var(--ink)}
+.hint{color:var(--mute)}
+.row{display:flex;gap:8px;flex-wrap:wrap;margin-top:auto}
+.row>button{flex:1}
+input[type=text]{width:100%;font:inherit;font-size:20px;padding:10px 12px;border:1.5px solid var(--ink);border-radius:8px;background:var(--paper);color:var(--text)}
+.res{min-height:28px;font-weight:600}
+.res.ok{color:var(--ok)}.res.bad{color:var(--bad)}
+.choices{display:grid;gap:8px}
+.choices button{text-align:left}
+.sum{font-size:20px}
+.sum big{font:700 56px/1 Caveat,cursive;color:var(--ink);display:block}
+.pg{display:grid;grid-template-columns:1fr 1fr;gap:10px}.pg button{text-align:left;font-size:16px}
+button:disabled{opacity:.55;cursor:default}
+.note{color:var(--mute);font-size:16px;margin-top:6px}
+@media (prefers-reduced-motion:reduce){.bar i{transition:none}}
+textarea{width:100%;font:inherit;font-size:17px;padding:10px 12px;border:1.5px solid var(--ink);border-radius:8px;background:var(--paper);color:var(--text);resize:vertical}
+.wl{max-height:320px;overflow-y:auto}
+.wi{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:4px 0;border-bottom:1px solid var(--line)}
+.wi button{min-height:36px;padding:2px 12px;border-color:var(--bad);color:var(--bad)}
+</style>
+</head>
+<body>
+<main>
+<h1>Тренажёр лексики</h1>
+<div class="tabs" id="tabs"></div>
+<div class="opts" id="opts"></div>
+<div class="bar"><i id="fill"></i></div>
+<div class="meta"><span id="prog"></span><span id="weak"></span></div>
+<div id="stage"></div>
+</main>
+<script>
+const DEF=[
+["ambitious","амбициозный, целеустремлённый","She is very ___ and wants to become a director by thirty."],
+["insecure","неуверенный в себе","He felt ___ about his accent and avoided speaking."],
+["big-head","высокомерный, зазнайка","Don’t be a ___; you are not better than everyone else."],
+["easygoing","лёгкий на подъём","My boss is so ___ that he never worries about deadlines."],
+["laid-back","вальяжный, спокойный","He is ___ and sleeps through everything, even loud noise."],
+["stubborn","упрямый","My grandfather is ___; he never changes his mind."],
+["moody","с переменчивым настроением","She is ___ today, so nobody can talk to her."],
+["affectionate","ласковый","He is an ___ person who hugs everyone he meets."],
+["passionate about","очень любить, обожать","I am ___ football; I watch every match."],
+["confident","уверенный","She spoke in a ___ voice, sure of every word."],
+["envious","завистливый","He was ___ of his friend’s new car."],
+["colleague","коллега","I asked my ___ to check the report."],
+["among","среди, между","She was the best ___ all the students."],
+["rely on","полагаться на","You can ___ him; he always keeps his promises."],
+["reliable","надёжный","He is a very ___ friend and never lets you down."],
+["sensible","разумный, здравомыслящий","It was a ___ decision to save some money."],
+["responsible","ответственный","The manager is ___ for the whole project."],
+["considerate","внимательный к другим","Be ___ and don’t make noise when others are sleeping."],
+["compassionate","сострадательный","A ___ doctor helps patients with real kindness."],
+["assertive","настойчивый, уверенный в отстаивании своего","You should be more ___ and say clearly what you want."],
+["noble","благородный","It was a ___ act to give his seat to an old woman."],
+["rebellious","непослушный, бунтарский","As a teenager, he was ___ and never obeyed his parents."],
+["obsessive","навязчивый, одержимый","He is ___ about cleanliness and washes his hands constantly."],
+["possessive","собственнический","She is ___ and doesn’t allow her boyfriend to see friends."],
+["edible","съедобный","Some mushrooms are poisonous, but others are ___."],
+["poisonous","ядовитый","This snake is ___."],
+["poison","яд","The doctor said it was ___ and he needed urgent help."],
+["mammal","млекопитающее","A whale is a ___, not a fish."],
+["insects","насекомые","Bees and ants are ___."],
+["digest","переваривать","It takes several hours to ___ heavy food."],
+["pale","бледный","She looked ___ and tired after the flight."],
+["curtains","шторы","Close the ___; the sun is too bright."],
+["cushions","подушки (диванные)","We put soft ___ on the sofa."],
+["kindle","разжечь, зажечь","They used dry sticks to ___ a fire."],
+["the rest of","остальные, остальная часть","I ate one slice, and he ate ___ the pizza."],
+["quite accurate","довольно точно","The forecast was ___; it rained exactly at noon."],
+["refuse","отказывать, отказываться","The bank decided to ___ his application."],
+["behaviour","поведение","The teacher praised the children’s good ___."],
+["behavioural","поведенческий","A ___ therapist studies how people act."],
+["considerable","значительный","The company made a ___ profit this year."],
+["tend to be","склонен быть (нейтрально)","Children ___ curious about everything."],
+["prone to","склонен (к плохому)","He is ___ making mistakes when he is tired."],
+["passion","страсть","Her ___ for music started in childhood."],
+["curious","любопытный","The kitten was ___ and explored every corner."],
+["adore","обожать","I ___ this singer; I know all his songs."],
+["several","несколько","I have ___ friends in Moscow."],
+["certain","уверенный, определённый","I am ___ that he lied; I saw it myself."],
+["avoiding","избегая","He lost weight by ___ sugar."],
+["common","общий, обычный","Cats and dogs are ___ pets."],
+["plenty","множество, избыток","We have ___ of time before the train."],
+["apparently","по-видимому, вероятно","___, he forgot about the meeting."],
+["suitable","подходящий","This room is ___ for a small office."],
+["survey","опрос","We did a ___ among 500 students."],
+["strict","строгий","Our teacher is very ___ and never allows lateness."],
+["poke","тыкать, пихать","Don’t ___ me with your finger."],
+["evoke","вызывать (эмоции, чувство)","The song can ___ memories of childhood."],
+["encourage","поощрять, способствовать","Good teachers ___ students to ask questions."],
+["discourage","препятствовать, отбивать охоту","High prices ___ people from buying."],
+["linked to","связанный с","Smoking is ___ lung cancer."],
+["sublimate","сублимировать, возвышать","Some people ___ their anger into creative work."],
+["memorable","памятный","It was a ___ trip; I will never forget it."],
+["just in case","на всякий случай","I took an umbrella ___."],
+["brain convolutions","извилины мозга","Scientists compared the ___ of humans and dolphins."],
+["convenience","удобство","Online banking is a great ___ for busy people."],
+["inconvenience","неудобство","We apologise for the ___ caused by the delay."],
+["awful","ужасный","The weather was ___, so we stayed home."],
+["baggage reclaim","зона выдачи багажа","After landing, we waited at ___ for our suitcases."],
+["lost luggage desk","стойка потерянного багажа","My bag didn’t arrive, so I went to the ___."],
+["affection","привязанность, нежность","She treats her cat with great ___."],
+["affordable","доступный по цене","We are looking for an ___ apartment near the centre."],
+["messy","неряшливый, неубранный","His room is always ___; clothes are everywhere."]
+];
+const MODES={card:"Карточки",type:"Вставь слово",choice:"Выбор перевода",pairs:"Пары",contrast:"Контраст",words:"Слова"};
+let P=null,K=null,D=[],WN=0;
+let mode="card",dir="en",onlyWeak=false,S;
+const $=s=>document.querySelector(s);
+function ld(k){try{return JSON.parse(localStorage.getItem(k))}catch(e){return null}}
+const tg=window.Telegram&&Telegram.WebApp;
+const CS=tg&&tg.initData&&tg.CloudStorage?tg.CloudStorage:null;
+try{if(tg){tg.ready();tg.expand();if(tg.colorScheme)document.documentElement.dataset.theme=tg.colorScheme;if(tg.disableVerticalSwipes)tg.disableVerticalSwipes()}}catch(e){}
+function kvGet(keys){return new Promise(r=>{if(CS)CS.getItems(keys,(e,v)=>r(e?{}:(v||{})));else{const o={};keys.forEach(k=>{try{o[k]=localStorage.getItem(k)||""}catch(e){o[k]=""}});r(o)}})}
+function kvSet(k,v){if(CS)CS.setItem(k,v,()=>{});else try{localStorage.setItem(k,v)}catch(e){}}
+function kvRm(k){if(CS)CS.removeItem(k,()=>{});else try{localStorage.removeItem(k)}catch(e){}}
+function sv(k,v){kvSet(k,JSON.stringify(v))}
+function saveWords(){
+  const ch=[];let cur=[],len=2;
+  for(const w of D){const l=JSON.stringify(w).length+1;if(len+l>3800&&cur.length){ch.push(cur);cur=[];len=2}cur.push(w);len+=l}
+  if(cur.length)ch.push(cur);
+  ch.forEach((c,i)=>kvSet("w"+i,JSON.stringify(c)));
+  for(let i=ch.length;i<WN;i++)kvRm("w"+i);
+  WN=ch.length;kvSet("wn",String(WN));
+}
+const ask=(m,cb)=>{try{if(tg&&tg.initData&&tg.showConfirm)return tg.showConfirm(m,cb)}catch(e){}cb(confirm(m))};
+const clean=s=>s.replace(/[<>&]/g,"").trim();
+let weak={};
+const norm=s=>s.toLowerCase().replace(/[^a-z]/g,"");
+const shuf=a=>{a=a.slice();for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a};
+const filled=i=>{const [e,,s]=D[i];if(!s)return "<b>"+e+"</b>";const w=s.startsWith("___")?e[0].toUpperCase()+e.slice(1):e;return s.replace("___","<b>"+w+"</b>")};
+const blank=i=>{const s=D[i][2];return s?s.replace("___","_____"):"Подсказка: "+D[i][0][0]+"…, букв: "+D[i][0].length};
+function weakIds(){return D.map((_,i)=>i).filter(i=>weak[i]>0)}
+function start(){
+  let ids=onlyWeak?weakIds():D.map((_,i)=>i);
+  if(!ids.length){onlyWeak=false;ids=D.map((_,i)=>i)}
+  S={q:shuf(ids),total:ids.length,first:0,seen:new Set()};
+  P=null;K=null;
+  head();render();
+}
+function head(){
+  $("#tabs").innerHTML=Object.keys(MODES).map(k=>`<button class="${k===mode?"on":""}" data-m="${k}">${MODES[k]}</button>`).join("");
+  let o=`<button class="${onlyWeak?"on":""}" data-w="1">Только слабые (${weakIds().length})</button>`;
+  if(mode==="card")o+=`<button data-d="1">${dir==="en"?"EN → RU":"RU → EN"}</button>`;
+  $("#opts").innerHTML=mode==="words"?"":o;
+}
+function prog(){
+  const done=S.total-S.q.length;
+  $("#fill").style.width=(S.total?done/S.total*100:0)+"%";
+  $("#prog").textContent=`Пройдено ${done} из ${S.total}`;
+  $("#weak").textContent=`С первого раза: ${S.first}`;
+}
+function answer(ok){
+  const id=S.q.shift();
+  if(ok&&!S.seen.has(id))S.first++;
+  S.seen.add(id);
+  if(ok){if(weak[id])weak[id]--}
+  else{weak[id]=(weak[id]||0)+1;S.q.splice(Math.min(3,S.q.length),0,id)}
+  sv("weak",weak);head();render();
+}
+function render(){
+  prog();
+  const st=$("#stage");
+  if(mode==="words")return admin();
+  if(mode==="pairs"&&D.length<6){st.onclick=null;st.innerHTML='<div class="card">Для режима нужно минимум 6 слов.</div>';return}
+  if(mode==="pairs")return pairs();
+  if(mode==="contrast")return contrast();
+  if(!S.q.length){
+    const w=weakIds().length;
+    st.innerHTML=`<div class="card sum"><big>${S.first}/${S.total}</big>с первого раза. Слабых слов: ${w}.<div class="row"><button id="again">Повторить</button>${w?'<button id="wk">Слабые слова</button>':""}</div></div>`;
+    $("#again").onclick=start;
+    if(w)$("#wk").onclick=()=>{onlyWeak=true;start()};
+    return;
+  }
+  const i=S.q[0],[en,ru]=D[i];
+  if(mode==="card"){
+    const front=dir==="en"?en:ru,back=dir==="en"?ru:en;
+    st.innerHTML=`<div class="card"><div class="word">${front}</div><div id="bk" class="hint">Вспомни перевод и открой.</div><div class="row" id="rw"><button id="show">Показать</button></div></div>`;
+    $("#show").onclick=()=>{
+      $("#bk").className="sent";
+      $("#bk").innerHTML=`<div class="word">${back}</div><p>${filled(i)}</p>`;
+      $("#rw").innerHTML='<button class="bad" id="no">Не знаю</button><button class="ok" id="yes">Знаю</button>';
+      $("#no").onclick=()=>answer(false);$("#yes").onclick=()=>answer(true);
+    };
+  }else if(mode==="type"){
+    st.innerHTML=`<div class="card"><div class="hint">${ru}</div><div class="sent">${blank(i)}</div><input type="text" id="in" autocomplete="off" autocapitalize="off" spellcheck="false" aria-label="Ответ"><div class="res" id="rs" aria-live="polite"></div><div class="row"><button id="chk">Проверить</button></div></div>`;
+    const inp=$("#in");inp.focus();
+    let checked=false,okv=false;
+    const go=()=>{
+      if(checked){answer(okv);return}
+      okv=norm(inp.value)===norm(en);checked=true;inp.disabled=true;
+      $("#rs").className="res "+(okv?"ok":"bad");
+      $("#rs").innerHTML=okv?"Верно":"Правильно: "+en;
+      $("#chk").textContent="Дальше";$("#chk").focus();
+    };
+    $("#chk").onclick=go;
+    inp.onkeydown=e=>{if(e.key==="Enter")go()};
+    document.onkeydown=e=>{if(e.key==="Enter"&&checked)go()};
+  }else{
+    const others=shuf(D.map((_,k)=>k).filter(k=>k!==i&&D[k][1]!==ru)).slice(0,3);
+    const opts=shuf([i,...others]);
+    st.innerHTML=`<div class="card"><div class="word">${en}</div><div class="hint">Выбери перевод.</div><div class="choices">${opts.map(k=>`<button data-k="${k}">${D[k][1]}</button>`).join("")}</div><div class="sent" id="ex"></div></div>`;
+    let done=false;
+    st.querySelectorAll(".choices button").forEach(b=>b.onclick=()=>{
+      if(done)return;done=true;
+      const ok=+b.dataset.k===i;
+      b.classList.add(ok?"ok":"bad");
+      if(!ok)st.querySelector(`[data-k="${i}"]`).classList.add("ok");
+      $("#ex").innerHTML=filled(i)+'<div class="row"><button id="nx">Дальше</button></div>';
+      $("#nx").focus();$("#nx").onclick=()=>answer(ok);
+    });
+  }
+}
+function pairs(){
+  const st=$("#stage");
+  if(!P||P.fin===2){const ids=shuf(D.map((_,i)=>i)).slice(0,6);P={le:shuf(ids),ri:shuf(ids),done:new Set(),left:6,sel:null,err:0,t:Date.now(),r:P?P.r+1:1,fl:[],fin:0}}
+  $("#prog").textContent="Раунд "+P.r+": найдено "+(6-P.left)+" из 6";
+  $("#weak").textContent="Ошибок: "+P.err;
+  $("#fill").style.width=((6-P.left)/6*100)+"%";
+  if(P.fin){
+    const t=Math.round((Date.now()-P.t)/1000);
+    st.onclick=null;
+    st.innerHTML=`<div class="card sum"><big>${t} с</big>Ошибок: ${P.err}.<div class="row"><button id="nr">Следующий раунд</button></div></div>`;
+    $("#nr").onclick=()=>{P.fin=2;pairs()};
+    return;
+  }
+  const b=(s,i,t)=>{const dn=P.done.has(i);const c=dn?"ok":P.fl.some(f=>f[0]===s&&f[1]===i)?"bad":(P.sel&&P.sel[0]===s&&P.sel[1]===i)?"on":"";return `<button class="${c}" data-s="${s}" data-i="${i}" ${dn?"disabled":""}>${t}</button>`};
+  st.innerHTML=`<div class="card"><div class="hint">Соедини слово с переводом.</div><div class="pg"><div class="choices">${P.le.map(i=>b("e",i,D[i][0])).join("")}</div><div class="choices">${P.ri.map(i=>b("r",i,D[i][1])).join("")}</div></div></div>`;
+  st.onclick=e=>{
+    if(mode!=="pairs"||P.fin)return;
+    const t=e.target.closest("button[data-s]");
+    if(!t||P.fl.length)return;
+    const s=t.dataset.s,i=+t.dataset.i;
+    if(!P.sel||P.sel[0]===s){P.sel=[s,i];return pairs()}
+    const a=P.sel;P.sel=null;
+    if(a[1]===i){P.done.add(i);P.left--;if(weak[i])weak[i]--;sv("weak",weak);if(!P.left)P.fin=1;return pairs()}
+    P.err++;weak[a[1]]=(weak[a[1]]||0)+1;weak[i]=(weak[i]||0)+1;sv("weak",weak);
+    P.fl=[a,[s,i]];pairs();
+    setTimeout(()=>{P.fl=[];if(mode==="pairs")pairs()},600);
+  };
+}
+const C=[
+["considerable","considerate","He is ___: he always asks if I need help.",1,"considerable – значительный; considerate – внимательный к другим"],
+["considerable","considerate","A ___ amount of money was lost.",0,"considerable – значительный; considerate – внимательный к другим"],
+["tend to be","prone to","Teenagers ___ independent.",0,"tend to be – нейтральная склонность; prone to – склонность к плохому"],
+["tend to be","prone to","This laptop is ___ overheating.",1,"tend to be – нейтральная склонность; prone to – склонность к плохому"],
+["sensible","sensitive","She made a ___ choice and bought a cheaper car.",0,"sensible – разумный; sensitive – чувствительный"],
+["poison","poisonous","This plant is ___.",1,"poison – существительное (яд); poisonous – прилагательное (ядовитый)"],
+["poison","poisonous","The doctor said it was ___ and he needed urgent help.",0,"poison – существительное (яд); poisonous – прилагательное (ядовитый)"],
+["passion","passionate","She is ___ about chess.",1,"passion – существительное; passionate – прилагательное"],
+["passion","passionate","He talks about his ___ for chess.",0,"passion – существительное; passionate – прилагательное"],
+["encourage","discourage","The rules ___ students to work in groups.",0,"encourage – поощрять; discourage – отбивать охоту"],
+["encourage","discourage","High prices ___ people from buying.",1,"encourage – поощрять; discourage – отбивать охоту"],
+["among","between","___ the three options, I chose the second.",0,"among – среди трёх и более; between – между двумя"],
+["among","between","The ball is ___ the two boys.",1,"among – среди трёх и более; between – между двумя"],
+["the rest","the rest of","___ the students left early.",1,"the rest of + существительное; the rest – само по себе"],
+["the rest","the rest of","Take two; ___ is for me.",0,"the rest of + существительное; the rest – само по себе"],
+["behaviour","behavioural","A ___ change is needed.",1,"behaviour – существительное; behavioural – прилагательное"],
+["reliable","responsible","He pays on time, so he is a ___ client.",0,"reliable – надёжный; responsible – ответственный"],
+["reliable","responsible","The manager is ___ for the whole project.",1,"reliable – надёжный; responsible – ответственный"]
+];
+function contrast(){
+  const st=$("#stage");st.onclick=null;
+  if(!K)K={q:shuf(C.map((_,i)=>i)),total:C.length,first:0,seen:new Set()};
+  const done=K.total-K.q.length;
+  $("#fill").style.width=(done/K.total*100)+"%";
+  $("#prog").textContent=`Пройдено ${done} из ${K.total}`;
+  $("#weak").textContent=`С первого раза: ${K.first}`;
+  if(!K.q.length){
+    st.innerHTML=`<div class="card sum"><big>${K.first}/${K.total}</big>с первого раза.<div class="row"><button id="ag">Повторить</button></div></div>`;
+    $("#ag").onclick=()=>{K=null;contrast()};
+    return;
+  }
+  const i=K.q[0],c=C[i];
+  const fin=w=>c[2].replace("___","<b>"+(c[2].startsWith("___")?w[0].toUpperCase()+w.slice(1):w)+"</b>");
+  st.innerHTML=`<div class="card"><div class="hint">Какое слово подходит?</div><div class="sent">${c[2].replace("___","_____")}</div><div class="choices"><button data-k="0">${c[0]}</button><button data-k="1">${c[1]}</button></div><div class="sent" id="ex"></div></div>`;
+  let d=false;
+  st.querySelectorAll(".choices button").forEach(b=>b.onclick=()=>{
+    if(d)return;d=true;
+    const ok=+b.dataset.k===c[3];
+    b.classList.add(ok?"ok":"bad");
+    if(!ok)st.querySelector(`[data-k="${c[3]}"]`).classList.add("ok");
+    $("#ex").innerHTML=fin(c[c[3]])+`<div class="note">${c[4]}</div><div class="row"><button id="nx">Дальше</button></div>`;
+    $("#nx").focus();
+    $("#nx").onclick=()=>{
+      K.q.shift();
+      if(ok&&!K.seen.has(i))K.first++;
+      K.seen.add(i);
+      if(!ok)K.q.splice(Math.min(3,K.q.length),0,i);
+      contrast();
+    };
+  });
+}
+function admin(){
+  const st=$("#stage");
+  $("#prog").textContent=D.length+" слов";$("#weak").textContent="";$("#fill").style.width="0";
+  st.innerHTML=`<div class="card"><div class="hint">По одному слову в строке: слово - перевод. Пример по желанию: слово - перевод | предложение со словом</div><textarea id="ta" rows="6" placeholder="affordable - доступный по цене&#10;messy - неряшливый | His room is always messy."></textarea><div class="res" id="am" aria-live="polite"></div><div class="row"><button id="add">Добавить</button></div></div><div class="card" style="margin-top:12px;min-height:0"><div class="wl">${D.map((w,i)=>`<div class="wi"><span><b>${w[0]}</b> – ${w[1]}</span><button data-x="${i}" aria-label="Удалить">×</button></div>`).join("")}</div><div class="row"><button id="rs2">Сбросить к базовому набору</button></div></div>`;
+  $("#add").onclick=()=>{
+    let ok=0,dup=0,bad=0;
+    $("#ta").value.split("\n").forEach(l=>{
+      l=l.trim();if(!l)return;
+      const [main,...ex]=l.split("|");
+      const m=main.split(/\s[-–—]\s/);
+      if(m.length<2){bad++;return}
+      const en=clean(m[0]),ru=clean(m.slice(1).join(" - "));
+      if(!en||!ru){bad++;return}
+      if(D.some(w=>w[0].toLowerCase()===en.toLowerCase())){dup++;return}
+      let s=clean(ex.join("|"));
+      if(s&&!s.includes("___")){const r=new RegExp(en.replace(/[.*+?^${}()|[\]\\]/g,"\\$&"),"i");s=r.test(s)?s.replace(r,"___"):""}
+      D.push([en,ru,s]);ok++;
+    });
+    if(ok)saveWords();
+    admin();
+    $("#am").className="res "+(bad?"bad":"ok");
+    $("#am").textContent="Добавлено: "+ok+(dup?"; уже были: "+dup:"")+(bad?"; не распознано: "+bad:"");
+  };
+  $("#rs2").onclick=()=>ask("Сбросить список слов к базовому набору?",y=>{if(y){D=DEF.map(x=>x.slice());weak={};sv("weak",weak);saveWords();admin()}});
+  st.onclick=e=>{
+    const b=e.target.closest("button[data-x]");
+    if(!b||mode!=="words")return;
+    const x=+b.dataset.x;D.splice(x,1);
+    const nw={};for(const k in weak){const j=+k;if(j<x)nw[j]=weak[j];else if(j>x)nw[j-1]=weak[j]}
+    weak=nw;sv("weak",weak);saveWords();
+    const t=$(".wl").scrollTop;admin();$(".wl").scrollTop=t;
+  };
+}
+$("#tabs").onclick=e=>{const m=e.target.dataset.m;if(m){mode=m;document.onkeydown=null;start()}};
+$("#opts").onclick=e=>{
+  if(e.target.dataset.w){onlyWeak=!onlyWeak;start()}
+  if(e.target.dataset.d){dir=dir==="en"?"ru":"en";head();render()}
+};
+(async()=>{
+  const o=await kvGet(["wn","weak"]);
+  const n=+o.wn||0;let w=[];
+  if(n){const ks=[...Array(n).keys()].map(i=>"w"+i);const v=await kvGet(ks);ks.forEach(k=>{try{w=w.concat(JSON.parse(v[k]||"[]"))}catch(e){}})}
+  D=(o.wn===""||o.wn===undefined)?DEF.map(x=>x.slice()):w;
+  WN=n;
+  try{weak=JSON.parse(o.weak||"{}")}catch(e){weak={}}
+  start();
+})();
+</script>
+</body>
+</html>
